@@ -74,7 +74,6 @@ def max_outcomes_for_face(dice=6, rolls=3, sims=100000):
     colnames = ['r{0}'.format(i + 1) for i in range(rolls)]
     
     for s in range(sims):
-
         outcome = max_outcome_for_face(dice, rolls)
         outcomes.append(outcome)
 
@@ -88,19 +87,16 @@ def summarise_counts(outcomes):
 
     """ Summarises frequency counts from max_outcomes_for_face. """
 
-     # Build a dictionary for counts
-    counts = {}
+    # Create column names for counts
+    colnames = ['c{0}'.format(i + 1) for i in range(len(outcomes.columns))]
 
-    # Get the counts
-    for c in outcomes.columns:
-        counts['c{0}'.format(c[1:])] = outcomes[c].value_counts().sort_index()
-
-    # Convert to dataframe
-    counts = pd.DataFrame(counts)
-
-    # Fill missing values and cast to int
-    for c in counts.columns:
-        counts[c] = counts[c].fillna(0.0).astype(int)
+    # Calculate counts and set column names
+    counts = outcomes.apply(pd.value_counts) \
+                     .fillna(0.0) \
+                     .astype(int) \
+                     .sort_index()
+                     
+    counts.columns = colnames
 
     return counts
 
@@ -109,32 +105,31 @@ def summarise_percentages(outcomes):
 
     """ Summarises percentages from max_outcomes_for_face. """
 
-    # Build a dictionary of percentages
-    percentages = {}
+    # Create column names for percentages
+    colnames = ['p{0}'.format(i + 1) for i in range(len(outcomes.columns))]
 
     # Get summary of counts
     counts = summarise_counts(outcomes)
 
-    # Calculate percentages and return as dataframe
-    for c in counts.columns:
-        percentages['p{0}'.format(c[1:])] = counts[c] / sum(counts[c])
+    # Calculate percentages and set column names
+    percentages = counts / len(outcomes)
+    percentages.columns = colnames
 
-    return pd.DataFrame(percentages)
+    return percentages
 
 
 def percentage_labels(percentages):
 
     """ Creates a dataframe of string labels for the given percentages. """
 
-    # Build a dictionary of labels
-    labels = {}
+    # Create column names for percentage labels
+    colnames = ['l{0}'.format(i + 1) for i in range(len(percentages.columns))]
 
-    # Generate the labels and return as dataframe
-    for c in percentages.columns:
-        labels['l{0}'.format(c[1:])] = \
-            ['{:.1f}'.format(p * 100) for p in percentages[c]]
+    # Format percentages and set column names
+    labels = percentages.applymap(lambda x: '{:.1f}'.format(x * 100))
+    labels.columns = colnames
 
-    return pd.DataFrame(labels)
+    return labels
 
 
 def save_heatmap(
@@ -153,17 +148,27 @@ def save_heatmap(
     # Set the font
     sns.set(font='Helvetica Neue', font_scale=2.5)
 
-    # Plot the heatmap
+    #Create the figure
     fig = plt.figure()
     fig.suptitle('Percentage of outcomes with N faces', weight='bold')
 
+    # Plot the heatmap
     ax = sns.heatmap(
         data, cmap=cmap, vmin=vmin, 
         vmax=vmax, annot=labels, fmt='')
 
     ax.set_title(title)
+    
+    # Set colorbar labels
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, 0.1, 0.2, 0.3, 0.4])
+    cbar.set_ticklabels(['0', '10', '20', '30', '40'])
+
+    # Add the heatmap and format
     fig.add_subplot(ax)
     fig.set_size_inches(width, height, False)
+
+    # Save and close
     fig.savefig(filename, bbox_inches='tight', pad_inches=0.5)
     plt.close(fig)
 
@@ -173,7 +178,7 @@ def run_analysis():
     """ Do the analysis. 
 
     By default this is set up to run ten million simulations for each of two
-    scenarios and it takes around eight minutes to run. Reduce the number of 
+    scenarios and it takes around ten minutes to run. Reduce the number of 
     simulations to generate output more quickly, but with less precision.
     """
 
